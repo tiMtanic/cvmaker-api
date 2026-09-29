@@ -1,11 +1,26 @@
-# Dependency directories
+# Dependencies
 node_modules/
 
-# Debug log from npm
-npm-debug.log
+# Build output
+dist/
 
-# Environment Variables should NEVER be published
+# Prisma generated client
+/generated/prisma/
+
+# Environment variables
 .env
+.env.*
+!.env.example
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+*.log
+
+# TypeScript
+*.tsbuildinfo
 
 # macOS
 .DS_Store
@@ -18,6 +33,17 @@ Thumbs.db:encryptable
 ehthumbs.db
 *.lnk
 
-
 # VS Code
 .vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+.agents
+.claude
+.windsurf
+
+# Coverage
+coverage/
+
+# Temporary files
+*.tmp
+*.temp
