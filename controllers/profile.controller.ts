@@ -40,6 +40,7 @@ type UpdateProfileBody = {
     years_experience?: number | null;
   }>;
   documents: Array<{
+    id?: number;
     title: string;
     category: string;
     description?: string | null;
@@ -48,16 +49,12 @@ type UpdateProfileBody = {
     file_content_base64?: string | null;
     file_mime_type?: string | null;
     issue_date?: string | null;
+    remove_file?: boolean;
   }>;
 };
 
 const parseDate = (date: string): Date => {
   return new Date(`${date}T00:00:00.000Z`);
-};
-
-const formatDate = (date: Date | null): string | null => {
-  if (!date) return null;
-  return date.toISOString().slice(0, 10);
 };
 
 export const getProfile = async (
@@ -109,7 +106,9 @@ export const updateProfile = async (
     }
 
     if (!profile.full_name?.trim()) {
-      res.status(400).json({ message: "profile.full_name is required" });
+      res.status(400).json({
+        message: "profile.full_name is required",
+      });
       return;
     }
 
@@ -163,6 +162,20 @@ export const updateProfile = async (
 
         currentProfileId = createdProfile.id;
       }
+
+      const existingDocuments = await tx.document.findMany({
+        where: { profile_info_id: currentProfileId },
+        select: {
+          id: true,
+          file_content: true,
+          file_name: true,
+          file_mime_type: true,
+        },
+      });
+
+      const existingDocumentMap = new Map(
+        existingDocuments.map((document) => [document.id, document]),
+      );
 
       await tx.work_experience.deleteMany({
         where: { profile_info_id: currentProfileId },
@@ -224,79 +237,55 @@ export const updateProfile = async (
 
       if (documents.length > 0) {
         await tx.document.createMany({
-          data: documents.map((item) => ({
-            profile_info_id: currentProfileId,
-            title: item.title,
-            category: item.category,
-            description: item.description ?? null,
-            external_url: item.external_url ?? null,
-            file_name: item.file_name ?? null,
-            file_content: item.file_content_base64
-              ? Buffer.from(item.file_content_base64, "base64")
-              : null,
-            file_mime_type: item.file_mime_type ?? null,
-            issue_date: item.issue_date ? parseDate(item.issue_date) : null,
-          })),
+          data: documents.map((item) => {
+            const existingDocument = item.id
+              ? existingDocumentMap.get(item.id)
+              : undefined;
+
+            const hasNewFile = Boolean(item.file_content_base64);
+            const removeFile = item.remove_file === true;
+
+            const fileContent = removeFile
+              ? null
+              : hasNewFile
+                ? Buffer.from(item.file_content_base64!, "base64")
+                : (existingDocument?.file_content ?? null);
+
+            const fileName = removeFile
+              ? null
+              : hasNewFile
+                ? (item.file_name ?? null)
+                : (item.file_name ?? existingDocument?.file_name ?? null);
+
+            const fileMimeType = removeFile
+              ? null
+              : hasNewFile
+                ? (item.file_mime_type ?? null)
+                : (item.file_mime_type ??
+                  existingDocument?.file_mime_type ??
+                  null);
+
+            return {
+              profile_info_id: currentProfileId,
+              title: item.title,
+              category: item.category,
+              description: item.description ?? null,
+              external_url: item.external_url ?? null,
+              file_name: fileName,
+              file_content: fileContent,
+              file_mime_type: fileMimeType,
+              issue_date: item.issue_date ? parseDate(item.issue_date) : null,
+            };
+          }),
         });
       }
 
       return currentProfileId;
     });
 
-    const savedProfile = await prisma.profile_info.findUnique({
-      where: { id: profileId },
-      include: {
-        work_experience: {
-          orderBy: { start_date: "desc" },
-        },
-        education: {
-          orderBy: { start_date: "desc" },
-        },
-        skill: {
-          orderBy: { id: "asc" },
-        },
-        document: {
-          orderBy: { id: "asc" },
-        },
-      },
-    });
-
-    if (!savedProfile) {
-      res.status(500).json({
-        message: "Profile could not be retrieved after saving",
-      });
-      return;
-    }
-
-    const { photo, document, ...profileData } = savedProfile;
-
     res.status(200).json({
-      ...profileData,
-      photo_base64: photo ? Buffer.from(photo).toString("base64") : null,
-
-      work_experience: savedProfile.work_experience.map((item) => ({
-        ...item,
-        start_date: formatDate(item.start_date),
-        end_date: formatDate(item.end_date),
-      })),
-
-      education: savedProfile.education.map((item) => ({
-        ...item,
-        start_date: formatDate(item.start_date),
-        end_date: formatDate(item.end_date),
-      })),
-
-      documents: document.map((item) => {
-        const { file_content, ...documentData } = item;
-
-        return {
-          ...documentData,
-          file_content_base64: file_content
-            ? Buffer.from(file_content).toString("base64")
-            : null,
-          issue_date: formatDate(item.issue_date),
-        };
-      }),
+      message: "Profile saved successfully",
+      profile_id: profileId,
     });
   } catch (error) {
     next(error);
