@@ -1,6 +1,3 @@
--- CreateSchema
-CREATE SCHEMA IF NOT EXISTS "public";
-
 -- CreateTable
 CREATE TABLE "document" (
     "id" SERIAL NOT NULL,
@@ -77,6 +74,25 @@ CREATE TABLE "work_experience" (
     CONSTRAINT "work_experience_pkey" PRIMARY KEY ("id")
 );
 
+-- CreateTable
+CREATE TABLE "access_code" (
+    "code" VARCHAR(5) NOT NULL,
+    "company" VARCHAR(256),
+    "is_admin_code" BOOLEAN NOT NULL DEFAULT false,
+
+    CONSTRAINT "access_code_pkey" PRIMARY KEY ("code")
+);
+
+-- CreateTable
+CREATE TABLE "access_log" (
+    "access_code_code" VARCHAR(5) NOT NULL,
+    "access_time" TIMESTAMP(6) NOT NULL,
+    "country" VARCHAR(256),
+    "city" VARCHAR,
+
+    CONSTRAINT "access_log_pkey" PRIMARY KEY ("access_code_code","access_time")
+);
+
 -- AddForeignKey
 ALTER TABLE "document" ADD CONSTRAINT "fk_document_profile" FOREIGN KEY ("profile_info_id") REFERENCES "profile_info"("id") ON DELETE CASCADE ON UPDATE NO ACTION;
 
@@ -89,3 +105,5 @@ ALTER TABLE "skill" ADD CONSTRAINT "fk_skill_profile" FOREIGN KEY ("profile_info
 -- AddForeignKey
 ALTER TABLE "work_experience" ADD CONSTRAINT "fk_work_experience_profile" FOREIGN KEY ("profile_info_id") REFERENCES "profile_info"("id") ON DELETE CASCADE ON UPDATE NO ACTION;
 
+-- AddForeignKey
+ALTER TABLE "access_log" ADD CONSTRAINT "fk_access_code" FOREIGN KEY ("access_code_code") REFERENCES "access_code"("code") ON DELETE CASCADE ON UPDATE NO ACTION;

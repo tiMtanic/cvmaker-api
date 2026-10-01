@@ -75,3 +75,20 @@ model work_experience {
   description     String?
   profile_info    profile_info @relation(fields: [profile_info_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_work_experience_profile")
 }
+
+model access_code {
+  code          String       @id @db.VarChar(5)
+  company       String?      @db.VarChar(256)
+  is_admin_code Boolean      @default(false)
+  access_log    access_log[]
+}
+
+model access_log {
+  access_code_code String      @db.VarChar(5)
+  access_time      DateTime    @db.Timestamp(6)
+  country          String?     @db.VarChar(256)
+  city             String?     @db.VarChar
+  access_code      access_code @relation(fields: [access_code_code], references: [code], onDelete: Cascade, onUpdate: NoAction, map: "fk_access_code")
+
+  @@id([access_code_code, access_time])
+}
