@@ -1,5 +1,6 @@
 import type { NextFunction, Request, Response } from "express";
 import jsonwebtoken, { type JwtPayload } from "jsonwebtoken";
+import { recordAccess } from "./accessLog.controller.js";
 import prisma from "../db/index.js";
 
 type AuthPayload = {
@@ -172,6 +173,8 @@ export const signIn = async (
     };
 
     const authToken = createAuthToken(payload);
+
+    await recordAccess(accessCode.code, req);
 
     res.status(200).json({
       authToken,
